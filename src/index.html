@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lumen Garden</title>
+<meta name="description" content="Bend light with your hands to wake a garden on your desk. A seated, hands-first mixed reality puzzle for Meta Quest.">
+<style>
+  :root { --bg: #0d1018; --ink: #f4f1ea; --muted: #a9b3c4; --gold: #ffcc4d; --line: rgba(255,255,255,.14); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+  #c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: pointer; }
+  #overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px;
+    background: radial-gradient(ellipse at 50% 30%, rgba(13,16,24,.35), rgba(13,16,24,.92) 70%); transition: opacity .35s; }
+  #overlay.hidden { opacity: 0; pointer-events: none; }
+  .card { width: min(520px, 100%); text-align: center; }
+  .mark { width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%, #fff6d8 0 18%, #ffcc4d 30%, rgba(255,160,60,.25) 55%, transparent 70%); }
+  h1 { font-size: clamp(36px, 7vw, 56px); margin: 0 0 8px; letter-spacing: -.02em; font-weight: 750; }
+  .tag { color: var(--muted); font-size: 18px; line-height: 1.5; margin: 0 auto 28px; max-width: 420px; }
+  .btns { display: flex; flex-direction: column; gap: 12px; }
+  button { font: inherit; font-size: 18px; font-weight: 650; padding: 16px 20px; border-radius: 14px; border: 1px solid var(--line);
+    background: rgba(255,255,255,.06); color: var(--ink); cursor: pointer; transition: background .15s, transform .1s; }
+  button:hover { background: rgba(255,255,255,.12); }
+  button:active { transform: scale(.98); }
+  button.primary { background: var(--gold); color: #2a1d00; border-color: transparent; }
+  button.primary:hover { background: #ffe08a; }
+  button[hidden] { display: none; }
+  .note { color: var(--muted); font-size: 14px; margin-top: 18px; line-height: 1.5; }
+  .feat { display: flex; justify-content: center; gap: 18px; flex-wrap: wrap; margin-top: 22px; color: var(--muted); font-size: 13px; }
+  #menu { position: fixed; top: 16px; left: 16px; padding: 10px 14px; font-size: 14px; display: none; backdrop-filter: blur(6px); }
+  #err { color: #ff9a8a; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="overlay">
+  <div class="card">
+    <div class="mark" aria-hidden="true"></div>
+    <h1>Lumen Garden</h1>
+    <p class="tag">Bend light with your hands to wake a garden on your desk.</p>
+    <div class="btns">
+      <button id="btn-ar" class="primary" hidden>Play in mixed reality</button>
+      <button id="btn-vr" hidden>Play in VR</button>
+      <button id="btn-flat">Play on this screen</button>
+    </div>
+    <p class="note" id="note">Checking for a headset…</p>
+    <div class="feat"><span>Hands only</span><span>Seated</span><span>2-minute puzzles</span><span>New garden daily</span></div>
+  </div>
+</div>
+<button id="menu">Menu</button>
+<!--SCRIPTS-->
+<script src="math.js"></script>
+<script src="puzzle.js"></script>
+<script src="gl.js"></script>
+<script src="audio.js"></script>
+<script src="game.js"></script>
+<!--/SCRIPTS-->
+<script>
+(function () {
+  var overlay = document.getElementById('overlay'), note = document.getElementById('note'), menu = document.getElementById('menu');
+  var game;
+  try { game = window.game = new Game(document.getElementById('c')); }
+  catch (e) { note.innerHTML = '<span id="err">This browser can’t run WebGL: ' + e.message + '</span>'; return; }
+  function hide() { overlay.classList.add('hidden'); }
+  function show() { overlay.classList.remove('hidden'); menu.style.display = 'none'; }
+  game.onExit = show;
+  document.getElementById('btn-flat').onclick = function () { game.sound.unlock(); hide(); menu.style.display = 'block'; };
+  menu.onclick = show;
+  function wire(id, mode) {
+    var b = document.getElementById(id);
+    b.hidden = false;
+    b.onclick = function () {
+      game.enterXR(mode).then(hide).catch(function (e) { note.innerHTML = '<span id="err">Couldn’t start: ' + e.message + '</span>'; });
+    };
+  }
+  if (!navigator.xr) { note.textContent = 'Open this page in the Meta Quest Browser to play with your hands in mixed reality.'; return; }
+  Promise.all([navigator.xr.isSessionSupported('immersive-ar').catch(function () { return false; }),
+               navigator.xr.isSessionSupported('immersive-vr').catch(function () { return false; })]).then(function (r) {
+    if (r[0]) wire('btn-ar', 'immersive-ar');
+    if (r[1]) wire('btn-vr', 'immersive-vr');
+    if (!r[1] && document.getElementById('btn-flat')) document.getElementById('btn-flat').classList.add('primary');
+    note.textContent = r[0] || r[1] ? 'Sit comfortably. The garden appears just in front of you, within reach.'
+      : 'Open this page in the Meta Quest Browser to play with your hands in mixed reality.';
+  });
+})();
+</script>
+</body>
+</html>
